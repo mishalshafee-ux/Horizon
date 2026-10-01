@@ -3,16 +3,13 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
-
-
-def is_session_host(member: discord.Member) -> bool:
-    return any(role.id == config.SESSION_HOST_ROLE_ID for role in member.roles)
+from .erlc import ERLCAPIError, get_server_data
 
 
 class SessionVoteView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        self.voters: set[int] = set()
+        self.voters = set()
 
     @discord.ui.button(
         label="Vote to Join",
@@ -20,32 +17,21 @@ class SessionVoteView(discord.ui.View):
         emoji="🙋",
         custom_id="horizon:session_vote_to_join",
     )
-    async def vote_to_join(
-        self,
-        interaction: discord.Interaction,
-        button: discord.ui.Button,
-    ):
+    async def vote_to_join(self, interaction, button):
         if interaction.user.id in self.voters:
             self.voters.remove(interaction.user.id)
-            message = "Your join vote has been removed."
+            reply = "Your join vote has been removed."
         else:
             self.voters.add(interaction.user.id)
-            message = "Your join vote has been counted."
+            reply = "Your join vote has been counted."
 
-        if interaction.message.embeds:
-            embed = interaction.message.embeds[0]
-        else:
-            embed = discord.Embed(
-                title="Horizon Roleplay | Session Vote",
-                color=discord.Color.from_rgb(245, 190, 95),
-            )
-
-        vote_field = next(
+        embed = interaction.message.embeds[0]
+        field_index = next(
             (i for i, field in enumerate(embed.fields) if field.name == "Join Votes"),
             None,
         )
 
-        if vote_field is None:
+        if field_index is None:
             embed.add_field(
                 name="Join Votes",
                 value=str(len(self.voters)),
@@ -53,23 +39,23 @@ class SessionVoteView(discord.ui.View):
             )
         else:
             embed.set_field_at(
-                vote_field,
+                field_index,
                 name="Join Votes",
                 value=str(len(self.voters)),
                 inline=True,
             )
 
         await interaction.response.edit_message(embed=embed, view=self)
-        await interaction.followup.send(message, ephemeral=True)
+        await interaction.followup.send(reply, ephemeral=True)
 
 
 class Sessions(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
-        self.session_message: discord.Message | None = None
-        self.session_view: SessionVoteView | None = None
+        self.session_message = None
+        self.session_view = None
 
-    async def require_session_host(self, interaction: discord.Interaction) -> bool:
+    async def require_session_host(self, interaction):
         if not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(
                 "Use this command in the Horizon Roleplay server.",
@@ -77,7 +63,10 @@ class Sessions(commands.Cog):
             )
             return False
 
-        if not is_session_host(interaction.user):
+        if not any(
+            role.id == config.SESSION_HOST_ROLE_ID
+            for role in interaction.user.roles
+        ):
             await interaction.response.send_message(
                 "You need the Session Host role to use this command.",
                 ephemeral=True,
@@ -94,6 +83,13 @@ class Sessions(commands.Cog):
         if not await self.require_session_host(interaction):
             return
 
+        if self.session_message is not None:
+            await interaction.response.send_message(
+                "There is already an open session vote.",
+                ephemeral=True,
+            )
+            return
+
         channel = interaction.guild.get_channel(config.SESSION_CHANNEL_ID)
         if not isinstance(channel, discord.TextChannel):
             await interaction.response.send_message(
@@ -102,19 +98,57 @@ class Sessions(commands.Cog):
             )
             return
 
+        try:
+            data = await get_server_data()
+            player_count = (
+                f"{data.get('CurrentPlayers', 0)}/"
+                f"{data.get('MaxPlayers', '?')}"
+            )
+            server_code = data.get("JoinKey") or "Horrp"
+            queue_count = len(data.get("Queue") or [])
+            staff_count = len((data.get("Staff") or {}).get("Mods") or {})
+        except ERLCAPIError:
+            player_count = "Unavailable"
+            server_code = "Horrp"
+            queue_count = "Unavailable"
+            staff_count = "Unavailable"
+
         embed = discord.Embed(
-            title="Horizon Roleplay | Session Vote",
+            title="Horizon Roleplay | Session Information",
             description=(
                 "A session is being planned. Click **Vote to Join** if you "
                 "plan to attend. Click again to remove your vote."
             ),
             color=discord.Color.from_rgb(245, 190, 95),
         )
-        embed.add_field(name="Server Name", value="Horizon Roleplay", inline=False)
-        embed.add_field(name="Server Code", value="To be announced", inline=True)
-        embed.add_field(name="Session Status", value="🟡 Vote open", inline=True)
+        embed.add_field(
+            name="Server Details",
+            value=(
+                "**Server Name:** Horizon Roleplay\n"
+                f"**Server Code:** `{server_code}`"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="Live Server Activity",
+            value=(
+                f"**In-game Players:** {player_count}\n"
+                f"**Currently Moderating:** {staff_count}\n"
+                f"**In-Queue Players:** {queue_count}"
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="Session Status",
+            value="🟡 Vote open",
+            inline=True,
+        )
         embed.add_field(name="Join Votes", value="0", inline=True)
-        embed.set_footer(text="Horizon Roleplay • Session Hosts")
+        embed.set_footer(text="Horizon Roleplay • Hosted by Session Hosts")
+
+        banner_url = getattr(config, "HORIZON_BANNER_URL", "")
+        if banner_url:
+            embed.set_image(url=banner_url)
 
         self.session_view = SessionVoteView()
         self.session_message = await channel.send(
@@ -137,7 +171,7 @@ class Sessions(commands.Cog):
 
         if self.session_message is None or self.session_view is None:
             await interaction.response.send_message(
-                "There is no active session vote to close.",
+                "There is no open session vote to close.",
                 ephemeral=True,
             )
             return
@@ -146,19 +180,15 @@ class Sessions(commands.Cog):
             item.disabled = True
 
         embed = self.session_message.embeds[0]
-        status_field = next(
-            (i for i, field in enumerate(embed.fields)
-             if field.name == "Session Status"),
-            None,
-        )
-
-        if status_field is not None:
-            embed.set_field_at(
-                status_field,
-                name="Session Status",
-                value="🔴 Vote closed",
-                inline=True,
-            )
+        for index, field in enumerate(embed.fields):
+            if field.name == "Session Status":
+                embed.set_field_at(
+                    index,
+                    name="Session Status",
+                    value="🔴 Vote closed",
+                    inline=True,
+                )
+                break
 
         await self.session_message.edit(
             embed=embed,
@@ -174,5 +204,5 @@ class Sessions(commands.Cog):
         )
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot):
     await bot.add_cog(Sessions(bot))

@@ -4,7 +4,7 @@ from discord.ext import commands
 
 
 class Commands(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(
@@ -14,47 +14,35 @@ class Commands(commands.Cog):
     async def commands_guide(self, interaction: discord.Interaction):
         embed = discord.Embed(
             title="Horizon Roleplay | Command Guide",
-            description="Choose a command below to use the bot's features.",
-            color=discord.Color.from_rgb(234, 197, 253),
+            color=discord.Color.from_rgb(245, 190, 95),
         )
-
         embed.add_field(
-            name="🎫 Tickets",
+            name="Tickets",
+            value="`!ticket-panel` — Post the support panel. Requires Manage Server.",
+            inline=False,
+        )
+        embed.add_field(
+            name="Sessions",
             value=(
-                "`/ticket-panel` — Post the support panel. "
-                "Requires Manage Server permission."
+                "`/session-start` — Post the session vote and live server count.\n"
+                "`/session-end` — Close the vote. Both require Session Host."
             ),
             inline=False,
         )
         embed.add_field(
-            name="👋 Welcome",
-            value="Welcome messages are sent automatically when a member joins.",
-            inline=False,
-        )
-        embed.add_field(
-            name="🗓️ Sessions",
+            name="ER:LC",
             value=(
-                "`/session-start` — Announce a session.\n"
-                "`/session-end` — Mark the current session as ended.\n"
-                "Both require the Session Host role."
+                "`/erlc-info` — Show live server info.\n"
+                "`/erlc-players` — List online players. Requires Manage Server."
             ),
             inline=False,
         )
         embed.add_field(
-            name="✅ Verification",
+            name="Other",
             value=(
-                "`/verify-panel` — Post the Roblox verification panel. "
-                "Requires Manage Roles permission.\n"
-                "Members use the panel button to verify their Roblox account."
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="📖 Bible Verses",
-            value=(
-                "`/verse` — Post a random Bible verse in this channel or "
-                "a selected channel.\n"
-                "A verse is also posted automatically every 24 hours."
+                "`/say` — Send a message as the bot. Requires Manage Messages.\n"
+                "`/verse` — Post a Bible verse.\n"
+                "`/verify-panel` — Post the Roblox verification panel."
             ),
             inline=False,
         )
@@ -63,5 +51,5 @@ class Commands(commands.Cog):
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot):
     await bot.add_cog(Commands(bot))

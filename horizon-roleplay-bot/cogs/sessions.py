@@ -116,25 +116,29 @@ class Sessions(commands.Cog):
         embed = discord.Embed(
             title="Horizon Roleplay | Session Information",
             description=(
-                "A session is being planned. Click **Vote to Join** if you "
-                "plan to attend. Click again to remove your vote."
+                "> A session is being planned. Click **Vote to Join** if you "
+                "> plan to attend. Click again to remove your vote."
             ),
             color=discord.Color.from_rgb(245, 190, 95),
         )
         embed.add_field(
             name="Server Details",
             value=(
-                "**Server Name:** Horizon Roleplay\n"
-                f"**Server Code:** `{server_code}`"
+                "**> Server Name:** Horizon Roleplay\n"
+                
+                
+                f"**> Server Code:** `{server_code}`"
             ),
             inline=False,
         )
         embed.add_field(
             name="Live Server Activity",
             value=(
-                f"**In-game Players:** {player_count}\n"
-                f"**Currently Moderating:** {staff_count}\n"
-                f"**In-Queue Players:** {queue_count}"
+                f"**> In-game Players:** {player_count}\n"
+                
+                f"**> Currently Moderating:** {staff_count}\n"
+                
+                f"**> In-Queue Players:** {queue_count}"
             ),
             inline=False,
         )

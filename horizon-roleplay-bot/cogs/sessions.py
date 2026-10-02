@@ -190,8 +190,6 @@ class Sessions(commands.Cog):
         embeds.append(embed)
 
         role_id = getattr(config, "SESSION_NOTIFICATION_ROLE_ID", 0)
-        if not role_id:
-            role_id = config.SESSION_HOST_ROLE_ID
 
         role = channel.guild.get_role(role_id) if role_id else None
         content = role.mention if role else None

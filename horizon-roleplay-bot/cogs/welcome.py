@@ -29,10 +29,10 @@ class Welcome(commands.Cog):
             )
 
         embed = discord.Embed(
-            title="🧡 Welcome to Horizon Roleplay! 🧡",
+            title=" Welcome to Horizon Roleplay! ",
             description=(
-                f"Welcome to **Horizon Roleplay**, {member.mention}!\n\n"
-                f"— {next_steps}\n\n"
+                f"Thank you for joining **Horizon Roleplay**, {member.mention}!\n\n"
+                f" {next_steps}\n\n"
                 "We’re glad you’re here. Enjoy your time with the community!"
             ),
             color=discord.Color.from_rgb(245, 159, 112),

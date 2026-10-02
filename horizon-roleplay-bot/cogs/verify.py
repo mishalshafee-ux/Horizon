@@ -214,7 +214,6 @@ class VerifyPanelView(discord.ui.View):
     @discord.ui.button(
         label="Verify",
         style=discord.ButtonStyle.success,
-        emoji="✅",
         custom_id="horizon:open_verify_modal",
     )
     async def verify(
@@ -239,7 +238,7 @@ class Verification(commands.Cog):
     @app_commands.checks.has_permissions(manage_roles=True)
     async def verify_panel(self, interaction: discord.Interaction):
         embed = discord.Embed(
-            title="✅ Horizon Roleplay Verification",
+            title="Horizon Roleplay Verification",
             description=(
                 "Verify your Roblox account to receive access to the server.\n\n"
                 "**How it works**\n"

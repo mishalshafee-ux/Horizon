@@ -40,8 +40,32 @@ class HorizonBot(commands.Bot):
         else:
             await self.tree.sync()
 
+    async def update_member_count_status(self, guild=None):
+        guild = guild or self.get_guild(config.GUILD_ID)
+        if guild is None:
+            return
+
+        count = guild.member_count
+        if count is None:
+            count = len(guild.members)
+
+        await self.change_presence(
+            status=discord.Status.dnd,
+            activity=discord.Activity(
+                type=discord.ActivityType.watching,
+                name=f"over {count:,} members",
+            ),
+        )
+
     async def on_ready(self):
+        await self.update_member_count_status()
         print(f"Logged in as {self.user} — Horizon Roleplay bot is online.")
+
+    async def on_member_join(self, member):
+        await self.update_member_count_status(member.guild)
+
+    async def on_member_remove(self, member):
+        await self.update_member_count_status(member.guild)
 
 
 async def main():

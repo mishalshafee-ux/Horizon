@@ -259,5 +259,28 @@ class Verification(commands.Cog):
         )
 
 
+    @commands.command(name="verifypanel", aliases=["verify-panel"])
+    @commands.has_permissions(manage_roles=True)
+    async def verify_panel_prefix(self, ctx):
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            pass
+
+        embed = discord.Embed(
+            title="Horizon Roleplay Verification",
+            description=(
+                "Verify your Roblox account to receive access to the server.\n\n"
+                "**How it works**\n"
+                "> 1. Click **Verify** and enter your Roblox username.\n"
+                "> 2. Add the one-time code to your Roblox profile About/Bio.\n"
+                "> 3. Click **I Added The Code**.\n\n"
+                "After verification, you’ll receive the verified role."
+            ),
+            color=COLOR,
+        )
+        embed.set_footer(text="Horizon Roleplay Verification")
+        await ctx.send(embed=embed, view=VerifyPanelView())
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(Verification(bot))

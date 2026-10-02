@@ -18,10 +18,11 @@ ORANGE = getattr(config, "EMBED_COLOR", 0xF28C28)
 
 
 class SessionVoteView(discord.ui.View):
-    def __init__(self, cog, channel):
+    def __init__(self, cog, channel, required_votes):
         super().__init__(timeout=None)
         self.cog = cog
         self.channel = channel
+        self.required_votes = required_votes
         self.voters = set()
         self.completed = False
 
@@ -50,11 +51,11 @@ class SessionVoteView(discord.ui.View):
         poll_embed.set_field_at(
             0,
             name="Votes",
-            value=f"{len(self.voters)}/{REQUIRED_VOTES}",
+            value=f"{len(self.voters)}/{self.required_votes}",
             inline=True,
         )
 
-        passed = len(self.voters) >= REQUIRED_VOTES
+        passed = len(self.voters) >= self.required_votes
         if passed:
             self.completed = True
             for item in self.children:
@@ -208,8 +209,24 @@ class Sessions(commands.Cog):
         name="session-vote",
         description="Open a vote to decide whether to start a session.",
     )
-    async def session_vote(self, interaction: discord.Interaction):
+    @app_commands.describe(
+        required_votes="Votes needed to start (1–500). Leave empty for the default."
+    )
+    async def session_vote(
+        self,
+        interaction: discord.Interaction,
+        required_votes: int | None = None,
+    ):
         if not await self.require_session_host(interaction):
+            return
+
+        if required_votes is None:
+            required_votes = REQUIRED_VOTES
+        if not 1 <= required_votes <= 500:
+            await interaction.response.send_message(
+                "Choose a threshold from 1 to 500 votes.",
+                ephemeral=True,
+            )
             return
 
         if self.vote_view is not None or self.session_message is not None:
@@ -232,18 +249,33 @@ class Sessions(commands.Cog):
             description=(
                 "A session is being planned. Click **Vote to Join** if you "
                 "would attend. Click again to remove your vote. When the vote "
-                f"reaches **{REQUIRED_VOTES}**, the session information will post automatically."
+                f"reaches **{required_votes}**, the session information will post automatically."
             ),
             color=ORANGE,
         )
-        embed.add_field(name="Votes", value=f"0/{REQUIRED_VOTES}", inline=True)
+        embed.add_field(name="Votes", value=f"0/{required_votes}", inline=True)
         embed.add_field(name="Status", value="🟡 Vote open", inline=True)
         embed.set_footer(text="Horizon Roleplay • Session Hosts")
 
-        self.vote_view = SessionVoteView(self, channel)
+        role_id = getattr(config, "SESSION_NOTIFICATION_ROLE_ID", 0)
+        role = channel.guild.get_role(role_id) if role_id else None
+        if role is None:
+            await interaction.response.send_message(
+                "Set SESSION_NOTIFICATION_ROLE_ID to the community notification role.",
+                ephemeral=True,
+            )
+            return
+
+        self.vote_view = SessionVoteView(self, channel, required_votes)
         self.vote_message = await channel.send(
+            content=f"{role.mention} A Horizon Roleplay session vote is open!",
             embed=embed,
             view=self.vote_view,
+            allowed_mentions=discord.AllowedMentions(
+                roles=[role],
+                users=False,
+                everyone=False,
+            ),
         )
 
         await interaction.response.send_message(

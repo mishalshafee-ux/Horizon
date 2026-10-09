@@ -1,9 +1,31 @@
 import asyncio
+import os
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import config
+
+
+def blocked_user_ids():
+    raw_ids = os.getenv("BOT_BLOCKED_USER_IDS", "")
+    return {
+        int(value.strip())
+        for value in raw_ids.split(",")
+        if value.strip().isdigit()
+    }
+
+
+class HorizonCommandTree(app_commands.CommandTree):
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id in blocked_user_ids():
+            await interaction.response.send_message(
+                "You are not allowed to use this bot's commands.",
+                ephemeral=True,
+            )
+            return False
+        return True
 
 
 class HorizonBot(commands.Bot):
@@ -12,7 +34,21 @@ class HorizonBot(commands.Bot):
         intents.members = True
         intents.message_content = True
 
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+            tree_cls=HorizonCommandTree,
+        )
+        self.add_check(self.blocked_user_check)
+
+    async def blocked_user_check(self, ctx):
+        if ctx.author.id in blocked_user_ids():
+            await ctx.reply(
+                "You are not allowed to use this bot's commands.",
+                mention_author=False,
+            )
+            return False
+        return True
 
     async def setup_hook(self):
         extensions = (

@@ -86,7 +86,6 @@ class Commands(commands.Cog):
 
         owner_id = int(os.getenv("BOT_OWNER_ID", "0") or 0)
         is_owner = ctx.author.id == owner_id and owner_id != 0
-        is_admin = ctx.author.guild_permissions.administrator
 
         async def private_reply(message):
             try:
@@ -94,7 +93,7 @@ class Commands(commands.Cog):
             except discord.Forbidden:
                 pass
 
-        if not (is_owner or is_admin):
+        if not is_owner:
             await private_reply("You are not authorized to use this moderation command.")
             return
 

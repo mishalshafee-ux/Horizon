@@ -1,3 +1,4 @@
+import os
 import discord
 from discord import app_commands
 from discord.ext import commands
@@ -50,6 +51,28 @@ class Commands(commands.Cog):
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
+
+
+    @commands.command(name="addrole")
+    async def addrole(self, ctx, member: discord.Member, role: discord.Role):
+        owner_id = int(os.getenv("BOT_OWNER_ID", "0") or 0)
+        if ctx.author.id != owner_id:
+            return
+
+        if role >= ctx.guild.me.top_role:
+            await ctx.reply("I can't assign a role at or above my highest role.")
+            return
+
+        try:
+            await member.add_roles(role, reason=f"Role assigned by bot owner {ctx.author}")
+        except discord.Forbidden:
+            await ctx.reply("I don't have permission to assign that role.")
+            return
+        except discord.HTTPException:
+            await ctx.reply("Discord couldn't assign that role. Please try again.")
+            return
+
+        await ctx.reply(f"Added **{role.name}** to {member.mention}.")
 
 async def setup(bot):
     await bot.add_cog(Commands(bot))

@@ -1,3 +1,5 @@
+from datetime import timedelta
+import re
 import os
 import discord
 from discord import app_commands
@@ -73,6 +75,71 @@ class Commands(commands.Cog):
             return
 
         await ctx.reply(f"Added **{role.name}** to {member.mention}.")
+
+    @commands.command(name="addtimeout")
+    async def addtimeout(self, ctx, member: discord.Member, duration: str, *, reason: str):
+        # Remove the public command message to keep the action discreet.
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+
+        owner_id = int(os.getenv("BOT_OWNER_ID", "0") or 0)
+        is_owner = ctx.author.id == owner_id and owner_id != 0
+        is_admin = ctx.author.guild_permissions.administrator
+
+        async def private_reply(message):
+            try:
+                await ctx.author.send(message)
+            except discord.Forbidden:
+                pass
+
+        if not (is_owner or is_admin):
+            await private_reply("You are not authorized to use this moderation command.")
+            return
+
+        if ctx.guild is None or member.guild != ctx.guild:
+            await private_reply("Use this command in the server with a valid member.")
+            return
+
+        match = re.fullmatch(r"([1-9][0-9]*)([smhd])", duration.lower())
+        if not match:
+            await private_reply("Duration format: `10m`, `2h`, or `1d` (maximum 28d).")
+            return
+
+        amount = int(match.group(1))
+        unit = match.group(2)
+        seconds_per_unit = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+        seconds = amount * seconds_per_unit[unit]
+
+        if seconds > 28 * 86400:
+            await private_reply("Discord timeouts cannot exceed 28 days.")
+            return
+
+        bot_member = ctx.guild.me
+        if bot_member is None or not bot_member.guild_permissions.moderate_members:
+            await private_reply("The bot needs the **Moderate Members** permission.")
+            return
+
+        if member == ctx.guild.owner or member.top_role >= bot_member.top_role:
+            await private_reply("I can't timeout the server owner or a member with an equal/higher role.")
+            return
+
+        try:
+            await member.timeout(
+                timedelta(seconds=seconds),
+                reason=f"{reason[:400]}",
+            )
+        except discord.Forbidden:
+            await private_reply("Discord denied the timeout. Check the bot's role and permissions.")
+            return
+        except discord.HTTPException:
+            await private_reply("Discord couldn't apply that timeout. Try again.")
+            return
+
+        await private_reply(
+            f"Timeout applied to {member} for {duration}. Reason: {reason}"
+        )
 
 async def setup(bot):
     await bot.add_cog(Commands(bot))
